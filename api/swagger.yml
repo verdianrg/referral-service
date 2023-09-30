@@ -1,0 +1,306 @@
+swagger: "2.0"
+info:
+  description: referral service
+  title: referral service
+  version: 1.0.0
+produces:
+  - application/json
+consumes:
+  - application/json
+schemes:
+  - http
+securityDefinitions:
+  key:
+    type: apiKey
+    in: header
+    name: Authorization
+  hasRole:
+    type: apiKey
+    in: header
+    name: Authorization
+
+security:
+  - key: []
+
+paths:
+  /v1/login:
+    post:
+      security: []  
+      summary: login to service
+      description: login endpoint
+      tags:
+        - "login"
+      parameters:
+        - in: body
+          name: data
+          required: true
+          description: login request data
+          schema:
+            $ref: "#/definitions/LoginRequest"
+      responses:
+        "201":
+          description: login success
+          schema:
+            $ref: "#/definitions/LoginResponse"
+        "401":
+          description: unauthorized
+          schema:
+            $ref: "#/responses/Unauthorized"
+        default:
+          description: error
+          schema:
+            $ref: "#/definitions/BaseResponse"
+  
+  /v1/dummy:
+    get:
+      summary: dummy endpoint
+      description: dummy endpoint
+      tags:
+        - "dummy"
+      responses:
+        "200":
+          description: dummy success
+          schema:
+            $ref: "#/definitions/BaseResponse"
+        "401":
+          description: unauthorized
+          schema:
+            $ref: "#/responses/Unauthorized"
+        default:
+          description: error
+          schema:
+            $ref: "#/definitions/BaseResponse"
+    
+  /v1/user:
+    post:
+      tags:
+        - user
+      security: []
+      summary: create user
+      description: create new user
+      parameters:
+        - in: body
+          name: data
+          required: true
+          schema:
+            $ref: "#/definitions/CreateUserRequest"
+      responses:
+        "201":
+          description: success create new user
+          schema:
+            $ref: "#/definitions/User"
+        "401":
+          description: unauthorized
+          schema:
+            $ref: "#/responses/Unauthorized"
+        default:
+          description: error
+          schema:
+            $ref: "#/definitions/BaseResponse"
+    
+  /v1/user/{id}:
+    get:
+      tags:
+        - user
+      summary: get user by id
+      description: get user detail
+      parameters:
+        - $ref: "#/parameters/ModelID"
+      responses:
+        "200":
+          description: success get user detail
+          schema:
+            type: object
+            properties: 
+              data:
+                $ref: "#/definitions/User"
+        "401":
+          description: unauthorized
+          schema:
+            $ref: "#/responses/Unauthorized"
+        default:
+          description: error
+          schema:
+            $ref: "#/definitions/BaseResponse"
+  
+  /unique-link/{link}:
+    post:
+      tags:
+        - unique
+      security:
+        - hasRole: ["contributor"]
+      summary: unique link
+      description: unique link
+      parameters:
+        - in: path
+          name: link
+          type: string
+          required: true
+        - in: body
+          name: data
+          required: true
+          schema:
+            type: object
+            properties: 
+              email:
+                type: string
+      responses:
+        "200":
+          description: success claim unique link
+          schema:
+            $ref: "#/definitions/BaseResponse"
+        "401":
+          description: unauthorized
+          schema:
+            $ref: "#/responses/Unauthorized"
+        default:
+          description: error
+          schema:
+            $ref: "#/definitions/BaseResponse"
+        
+
+definitions:
+  ## common definitions
+  BaseResponse:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
+
+  principal:
+    type: object
+    properties:
+      name:
+        type: string
+      role:
+          type: string
+  
+  ModelID:
+    type: object
+    properties:
+      id:
+        type: integer
+        format: int64
+        x-go-custom-tag: gorm:"type:int primary key auto_increment"
+  ModelLogTime:
+    type: object
+    properties:
+      createdAt:
+        type: integer
+        format: date-time
+        x-go-custom-tag: gorm:"type:int;autoCreateTime"
+      updatedAt:
+        type: integer
+        format: date-time
+        x-go-custom-tag: gorm:"type:int;autoUpdateTime"
+      deletedAt:
+        type: "string"
+        format: "date-time"
+        x-go-type:
+          type: DeletedAt
+        x-go-custom-tag: gorm:"type:datetime"
+    
+  DeletedAt:
+    type: object
+    x-go-type:
+      type: DeletedAt
+      import:
+        package: gorm.io/gorm
+      embedded: true
+
+  ## request definitions
+  LoginRequest:
+    type: object
+    required: [email, password]
+    properties: 
+      email:
+        type: string
+      password:
+        type: string
+  
+  CreateUserRequest:
+    $ref: "#/definitions/UserData"
+  
+  ## response definitions
+  LoginResponse:
+    type: object
+    properties: 
+      email:
+        type: string
+      role:
+        type: string
+      token:
+        type: string
+
+  ## model definitions
+  User:
+    allOf:
+      - $ref: "#/definitions/ModelID"
+      - $ref: "#/definitions/ModelLogTime"
+      - $ref: "#/definitions/UserData"
+
+  UserData:
+    type: object
+    properties: 
+      email:
+        type: string
+        x-go-custom-tag: gorm:"type:varchar(225) not null unique"
+      password:
+        type: string
+        x-go-custom-tag: gorm:"type:varchar(225) not null"
+      role:
+        type: string
+        x-go-custom-tag: gorm:"type:varchar(225) not null"
+      uniqueLink:
+        type: string
+        x-go-custom-tag: gorm:"type:varchar(225) not null"
+      contribution:
+        type: number
+        format: int64
+
+parameters:
+  ModelID:
+    name: id
+    in: path
+    type: number
+    format: int64
+    required: true
+
+responses:
+  ## success response
+  Success:
+    description: the request to the server was successful
+    schema:
+      $ref: "#/definitions/BaseResponse"
+  Created:
+    description: the request to the server was successful
+    schema:
+      $ref: "#/definitions/BaseResponse"
+  ## error response
+  BadRequest:
+    description: something wrong when send request to server
+    schema:
+      $ref: "#/definitions/BaseResponse"
+  Unauthorized:
+    description: the client must be authenticated to perform this request
+    schema:
+      $ref: "#/definitions/BaseResponse"
+  ForbiddenAccess:
+    description: the client don`t have access to the resource
+    schema:
+      $ref: "#/definitions/BaseResponse"
+  NotFound:
+    description: the request resource is not found
+    schema:
+      $ref: "#/definitions/BaseResponse"
+  UnprocessableEntity:
+    description: The request is correct but server can`t process the request
+    schema:
+      $ref: "#/definitions/BaseResponse"
+  InternalServerError:
+    description: Internal Server Error
+    schema:
+      $ref: "#/definitions/BaseResponse"
